@@ -54,3 +54,17 @@ $string['status'] = 'Allow enrolment on payment enrolments';
 $string['status_desc'] = 'Allow users to make a payment to enrol into a course by default.';
 $string['syncenrolmentstask'] = 'Synchronise self enrolments task';
 $string['sendexpirynotificationstask'] = "Self enrolment send expiry notifications task";
+$string['expirymessageenrollersubject'] = 'Self enrolment expiry notification';
+$string['expirymessageenrollerbody'] = 'Self enrolment in the course \'{$a->course}\' will expire within the next {$a->threshold} for the following users:
+
+{$a->users}
+
+To extend their enrolment, go to {$a->extendurl}';
+$string['expirymessageenrolledsubject'] = 'Self enrolment expiry notification';
+$string['expirymessageenrolledbody'] = 'Dear {$a->user},
+
+This is a notification that your enrolment in the course \'{$a->course}\' is due to expire on {$a->timeend}.
+
+If you need help, please contact {$a->enroller}.';
+$string['expirynotifyall'] = 'Teacher and enrolled user';
+$string['expirynotifyenroller'] = 'Teacher only';
