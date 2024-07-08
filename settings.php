@@ -84,8 +84,8 @@ if ($ADMIN->fulltree) {
         get_string('enrolperiod', 'enrol_fee'), get_string('enrolperiod_desc', 'enrol_fee'), 0));
 
     $options = array(0 => get_string('no'),
-                     1 => get_string('expirynotifyenroller', 'enrol_fee'),
-                     2 => get_string('expirynotifyall', 'enrol_fee'));
+                     1 => get_string('expirynotifyenroller', 'core_enrol'),
+                     2 => get_string('expirynotifyall', 'core_enrol'));
     $settings->add(new admin_setting_configselect('enrol_fee/expirynotify',
         get_string('expirynotify', 'core_enrol'), get_string('expirynotify_help', 'core_enrol'), 0, $options));
 
