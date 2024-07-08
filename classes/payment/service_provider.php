@@ -90,6 +90,12 @@ class service_provider implements \core_payment\local\callback\service_provider 
 
         $plugin->enrol_user($instance, $userid, $instance->roleid, $timestart, $timeend);
 
+        $data = new \stdClass();
+        $data->paymentid = $paymentid;
+        $data->courseid = $instance->courseid;
+        $data->timecreated = time();
+        $DB->insert_record('enrol_fee', $data);
+
         return true;
     }
 }
