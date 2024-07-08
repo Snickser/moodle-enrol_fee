@@ -131,6 +131,36 @@ class enrol_fee_plugin extends enrol_plugin {
     }
 
     /**
+     * Returns defaults for new instances.
+     * @return array
+     */
+    public function get_instance_defaults() {
+        $expirynotify = $this->get_config('expirynotify');
+        if ($expirynotify == 2) {
+            $expirynotify = 1;
+            $notifyall = 1;
+        } else {
+            $notifyall = 0;
+        }
+
+        $fields = array();
+        $fields['status']          = $this->get_config('status');
+        $fields['roleid']          = $this->get_config('roleid');
+        $fields['enrolperiod']     = $this->get_config('enrolperiod');
+        $fields['expirynotify']    = $expirynotify;
+        $fields['notifyall']       = $notifyall;
+        $fields['expirythreshold'] = $this->get_config('expirythreshold');
+        $fields['customint1']      = $this->get_config('groupkey');
+        $fields['customint2']      = $this->get_config('longtimenosee');
+        $fields['customint3']      = $this->get_config('maxenrolled');
+        $fields['customint4']      = $this->get_config('sendcoursewelcomemessage');
+        $fields['customint5']      = 0;
+        $fields['customint6']      = $this->get_config('newenrols');
+
+        return $fields;
+    }
+
+    /**
      * Add new instance of enrol plugin.
      * @param object $course
      * @param array $fields instance fields
@@ -139,6 +169,15 @@ class enrol_fee_plugin extends enrol_plugin {
     public function add_instance($course, array $fields = null) {
         if ($fields && !empty($fields['cost'])) {
             $fields['cost'] = unformat_float($fields['cost']);
+        }
+        // In the form we are representing 2 db columns with one field.
+        if (!empty($fields) && !empty($fields['expirynotify'])) {
+            if ($fields['expirynotify'] == 2) {
+                $fields['expirynotify'] = 1;
+                $fields['notifyall'] = 1;
+            } else {
+                $fields['notifyall'] = 0;
+            }
         }
         return parent::add_instance($course, $fields);
     }
@@ -152,6 +191,17 @@ class enrol_fee_plugin extends enrol_plugin {
     public function update_instance($instance, $data) {
         if ($data) {
             $data->cost = unformat_float($data->cost);
+        }
+        // In the form we are representing 2 db columns with one field.
+        if ($data->expirynotify == 2) {
+            $data->expirynotify = 1;
+            $data->notifyall = 1;
+        } else {
+            $data->notifyall = 0;
+        }
+        // Keep previous/default value of disabled expirythreshold option.
+        if (!$data->expirynotify) {
+            $data->expirythreshold = $instance->expirythreshold;
         }
         return parent::update_instance($instance, $data);
     }
@@ -304,6 +354,19 @@ class enrol_fee_plugin extends enrol_plugin {
 
 
     /**
+     * Return an array of valid options for the expirynotify property.
+     *
+     * @return array
+     */
+    protected function get_expirynotify_options() {
+        $options = array(0 => get_string('no'),
+                         1 => get_string('expirynotifyenroller', 'core_enrol'),
+                         2 => get_string('expirynotifyall', 'core_enrol'));
+        return $options;
+    }
+
+
+    /**
      * Add elements to the edit instance form.
      *
      * @param stdClass $instance
@@ -312,6 +375,12 @@ class enrol_fee_plugin extends enrol_plugin {
      * @return bool
      */
     public function edit_instance_form($instance, MoodleQuickForm $mform, $context) {
+
+        // Merge these two settings to one value for the single selection element.
+        if ($instance->notifyall and $instance->expirynotify) {
+            $instance->expirynotify = 2;
+        }
+        unset($instance->notifyall);
 
         $mform->addElement('text', 'name', get_string('custominstancename', 'enrol'));
         $mform->setType('name', PARAM_TEXT);
@@ -348,6 +417,15 @@ class enrol_fee_plugin extends enrol_plugin {
         $mform->addElement('duration', 'enrolperiod', get_string('enrolperiod', 'enrol_fee'), $options);
         $mform->setDefault('enrolperiod', $this->get_config('enrolperiod'));
         $mform->addHelpButton('enrolperiod', 'enrolperiod', 'enrol_fee');
+
+        $options = $this->get_expirynotify_options();
+        $mform->addElement('select', 'expirynotify', get_string('expirynotify', 'core_enrol'), $options);
+        $mform->addHelpButton('expirynotify', 'expirynotify', 'core_enrol');
+
+        $options = array('optional' => false, 'defaultunit' => 86400);
+        $mform->addElement('duration', 'expirythreshold', get_string('expirythreshold', 'core_enrol'), $options);
+        $mform->addHelpButton('expirythreshold', 'expirythreshold', 'core_enrol');
+        $mform->disabledIf('expirythreshold', 'expirynotify', 'eq', 0);
 
         $options = array('optional' => true);
         $mform->addElement('date_time_selector', 'enrolstartdate', get_string('enrolstartdate', 'enrol_fee'), $options);
@@ -388,18 +466,27 @@ class enrol_fee_plugin extends enrol_plugin {
             $errors['cost'] = get_string('costerror', 'enrol_fee');
         }
 
+        if ($data['expirynotify'] > 0 and $data['expirythreshold'] < 86400) {
+            $errors['expirythreshold'] = get_string('errorthresholdlow', 'core_enrol');
+        }
+
         $validstatus = array_keys($this->get_status_options());
         $validcurrency = array_keys($this->get_possible_currencies());
+        $validexpirynotify = array_keys($this->get_expirynotify_options());
         $validroles = array_keys($this->get_roleid_options($instance, $context));
         $tovalidate = array(
             'name' => PARAM_TEXT,
             'status' => $validstatus,
             'currency' => $validcurrency,
             'roleid' => $validroles,
+            'expirynotify' => $validexpirynotify,
             'enrolperiod' => PARAM_INT,
             'enrolstartdate' => PARAM_INT,
             'enrolenddate' => PARAM_INT
         );
+        if ($data['expirynotify'] != 0) {
+            $tovalidate['expirythreshold'] = PARAM_INT;
+        }
 
         $typeerrors = $this->validate_param_types($data, $tovalidate);
         $errors = array_merge($errors, $typeerrors);
