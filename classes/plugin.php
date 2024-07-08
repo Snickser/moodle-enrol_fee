@@ -31,7 +31,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class enrol_fee_plugin extends enrol_plugin {
-
     /**
      * Returns the list of currencies that the payment subsystem supports and therefore we can work with.
      *
@@ -45,7 +44,7 @@ class enrol_fee_plugin extends enrol_plugin {
             $currencies[$c] = new lang_string($c, 'core_currencies');
         }
 
-        uasort($currencies, function($a, $b) {
+        uasort($currencies, function ($a, $b) {
             return strcmp($a, $b);
         });
 
@@ -77,9 +76,9 @@ class enrol_fee_plugin extends enrol_plugin {
             break;
         }
         if ($found) {
-            return array(new pix_icon('icon', get_string('pluginname', 'enrol_fee'), 'enrol_fee'));
+            return [new pix_icon('icon', get_string('pluginname', 'enrol_fee'), 'enrol_fee')];
         }
-        return array();
+        return [];
     }
 
     public function roles_protected() {
@@ -143,7 +142,7 @@ class enrol_fee_plugin extends enrol_plugin {
             $notifyall = 0;
         }
 
-        $fields = array();
+        $fields = [];
         $fields['status']          = $this->get_config('status');
         $fields['roleid']          = $this->get_config('roleid');
         $fields['enrolperiod']     = $this->get_config('enrolperiod');
@@ -243,8 +242,13 @@ class enrol_fee_plugin extends enrol_plugin {
 
         ob_start();
 
-        if ($DB->record_exists('user_enrolments', array('userid' => $USER->id, 'enrolid' => $instance->id))) {
-            return ob_get_clean();
+        if ($DB->record_exists('user_enrolments', ['userid' => $USER->id, 'enrolid' => $instance->id])) {
+            $data = $DB->get_record('user_enrolments', ['userid' => $USER->id, 'enrolid' => $instance->id]);
+            if ($data->status) {
+                return ob_get_clean();
+            } else {
+            // Do repay.
+            }
         }
 
         if ($instance->enrolstartdate != 0 && $instance->enrolstartdate > time()) {
@@ -255,25 +259,27 @@ class enrol_fee_plugin extends enrol_plugin {
             return ob_get_clean();
         }
 
-        $course = $DB->get_record('course', array('id' => $instance->courseid));
+        $course = $DB->get_record('course', ['id' => $instance->courseid]);
         $context = context_course::instance($course->id);
 
-        if ( (float) $instance->cost <= 0 ) {
+        if ((float) $instance->cost <= 0) {
             $cost = (float) $this->get_config('cost');
         } else {
             $cost = (float) $instance->cost;
         }
 
         if (abs($cost) < 0.01) { // No cost, other enrolment methods (instances) should be used.
-            echo '<p>'.get_string('nocost', 'enrol_fee').'</p>';
+            echo '<p>' . get_string('nocost', 'enrol_fee') . '</p>';
         } else {
-
             $data = [
                 'isguestuser' => isguestuser() || !isloggedin(),
                 'cost' => \core_payment\helper::get_cost_as_string($cost, $instance->currency),
                 'instanceid' => $instance->id,
-                'description' => get_string('purchasedescription', 'enrol_fee',
-                    format_string($course->fullname, true, ['context' => $context])),
+                'description' => get_string(
+                    'purchasedescription',
+                    'enrol_fee',
+                    format_string($course->fullname, true, ['context' => $context])
+                ),
                 'successurl' => \enrol_fee\payment\service_provider::get_success_url('fee', $instance->id)->out(false),
             ];
             echo $OUTPUT->render_from_template('enrol_fee/payment_region', $data);
@@ -295,13 +301,13 @@ class enrol_fee_plugin extends enrol_plugin {
         if ($step->get_task()->get_target() == backup::TARGET_NEW_COURSE) {
             $merge = false;
         } else {
-            $merge = array(
+            $merge = [
                 'courseid'   => $data->courseid,
                 'enrol'      => $this->get_name(),
                 'roleid'     => $data->roleid,
                 'cost'       => $data->cost,
                 'currency'   => $data->currency,
-            );
+            ];
         }
         if ($merge and $instances = $DB->get_records('enrol', $merge, 'id')) {
             $instance = reset($instances);
@@ -331,8 +337,8 @@ class enrol_fee_plugin extends enrol_plugin {
      * @return array
      */
     protected function get_status_options() {
-        $options = array(ENROL_INSTANCE_ENABLED  => get_string('yes'),
-                         ENROL_INSTANCE_DISABLED => get_string('no'));
+        $options = [ENROL_INSTANCE_ENABLED  => get_string('yes'),
+                         ENROL_INSTANCE_DISABLED => get_string('no')];
         return $options;
     }
 
@@ -359,9 +365,9 @@ class enrol_fee_plugin extends enrol_plugin {
      * @return array
      */
     protected function get_expirynotify_options() {
-        $options = array(0 => get_string('no'),
+        $options = [0 => get_string('no'),
                          1 => get_string('expirynotifyenroller', 'core_enrol'),
-                         2 => get_string('expirynotifyall', 'core_enrol'));
+                         2 => get_string('expirynotifyall', 'core_enrol')];
         return $options;
     }
 
@@ -394,14 +400,18 @@ class enrol_fee_plugin extends enrol_plugin {
             $accounts = ((count($accounts) > 1) ? ['' => ''] : []) + $accounts;
             $mform->addElement('select', 'customint1', get_string('paymentaccount', 'payment'), $accounts);
         } else {
-            $mform->addElement('static', 'customint1_text', get_string('paymentaccount', 'payment'),
-                html_writer::span(get_string('noaccountsavilable', 'payment'), 'alert alert-danger'));
+            $mform->addElement(
+                'static',
+                'customint1_text',
+                get_string('paymentaccount', 'payment'),
+                html_writer::span(get_string('noaccountsavilable', 'payment'), 'alert alert-danger')
+            );
             $mform->addElement('hidden', 'customint1');
             $mform->setType('customint1', PARAM_INT);
         }
         $mform->addHelpButton('customint1', 'paymentaccount', 'enrol_fee');
 
-        $mform->addElement('text', 'cost', get_string('cost', 'enrol_fee'), array('size' => 4));
+        $mform->addElement('text', 'cost', get_string('cost', 'enrol_fee'), ['size' => 4]);
         $mform->setType('cost', PARAM_RAW);
         $mform->setDefault('cost', format_float($this->get_config('cost'), 2, true));
 
@@ -413,7 +423,7 @@ class enrol_fee_plugin extends enrol_plugin {
         $mform->addElement('select', 'roleid', get_string('assignrole', 'enrol_fee'), $roles);
         $mform->setDefault('roleid', $this->get_config('roleid'));
 
-        $options = array('optional' => true, 'defaultunit' => 86400);
+        $options = ['optional' => true, 'defaultunit' => 86400];
         $mform->addElement('duration', 'enrolperiod', get_string('enrolperiod', 'enrol_fee'), $options);
         $mform->setDefault('enrolperiod', $this->get_config('enrolperiod'));
         $mform->addHelpButton('enrolperiod', 'enrolperiod', 'enrol_fee');
@@ -422,17 +432,17 @@ class enrol_fee_plugin extends enrol_plugin {
         $mform->addElement('select', 'expirynotify', get_string('expirynotify', 'core_enrol'), $options);
         $mform->addHelpButton('expirynotify', 'expirynotify', 'core_enrol');
 
-        $options = array('optional' => false, 'defaultunit' => 86400);
+        $options = ['optional' => false, 'defaultunit' => 86400];
         $mform->addElement('duration', 'expirythreshold', get_string('expirythreshold', 'core_enrol'), $options);
         $mform->addHelpButton('expirythreshold', 'expirythreshold', 'core_enrol');
         $mform->disabledIf('expirythreshold', 'expirynotify', 'eq', 0);
 
-        $options = array('optional' => true);
+        $options = ['optional' => true];
         $mform->addElement('date_time_selector', 'enrolstartdate', get_string('enrolstartdate', 'enrol_fee'), $options);
         $mform->setDefault('enrolstartdate', 0);
         $mform->addHelpButton('enrolstartdate', 'enrolstartdate', 'enrol_fee');
 
-        $options = array('optional' => true);
+        $options = ['optional' => true];
         $mform->addElement('date_time_selector', 'enrolenddate', get_string('enrolenddate', 'enrol_fee'), $options);
         $mform->setDefault('enrolenddate', 0);
         $mform->addHelpButton('enrolenddate', 'enrolenddate', 'enrol_fee');
@@ -455,7 +465,7 @@ class enrol_fee_plugin extends enrol_plugin {
      * @return void
      */
     public function edit_instance_validation($data, $files, $instance, $context) {
-        $errors = array();
+        $errors = [];
 
         if (!empty($data['enrolenddate']) and $data['enrolenddate'] < $data['enrolstartdate']) {
             $errors['enrolenddate'] = get_string('enrolenddaterror', 'enrol_fee');
@@ -474,7 +484,7 @@ class enrol_fee_plugin extends enrol_plugin {
         $validcurrency = array_keys($this->get_possible_currencies());
         $validexpirynotify = array_keys($this->get_expirynotify_options());
         $validroles = array_keys($this->get_roleid_options($instance, $context));
-        $tovalidate = array(
+        $tovalidate = [
             'name' => PARAM_TEXT,
             'status' => $validstatus,
             'currency' => $validcurrency,
@@ -482,8 +492,8 @@ class enrol_fee_plugin extends enrol_plugin {
             'expirynotify' => $validexpirynotify,
             'enrolperiod' => PARAM_INT,
             'enrolstartdate' => PARAM_INT,
-            'enrolenddate' => PARAM_INT
-        );
+            'enrolenddate' => PARAM_INT,
+        ];
         if ($data['expirynotify'] != 0) {
             $tovalidate['expirythreshold'] = PARAM_INT;
         }
@@ -491,9 +501,11 @@ class enrol_fee_plugin extends enrol_plugin {
         $typeerrors = $this->validate_param_types($data, $tovalidate);
         $errors = array_merge($errors, $typeerrors);
 
-        if ($data['status'] == ENROL_INSTANCE_ENABLED &&
-                (!$data['customint1']
-                    || !array_key_exists($data['customint1'], \core_payment\helper::get_payment_accounts_menu($context)))) {
+        if (
+            $data['status'] == ENROL_INSTANCE_ENABLED &&
+                (!$data['customint1'] ||
+                    !array_key_exists($data['customint1'], \core_payment\helper::get_payment_accounts_menu($context)))
+        ) {
             $errors['status'] = 'Enrolments can not be enabled without specifying the payment account';
         }
 
