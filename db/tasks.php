@@ -38,7 +38,7 @@ $tasks = array(
     array(
         'classname' => '\enrol_fee\task\send_expiry_notifications',
         'blocking' => 0,
-        'minute' => '*/10',
+        'minute' => '0',
         'hour' => '*',
         'day' => '*',
         'month' => '*',
