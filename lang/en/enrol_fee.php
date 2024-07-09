@@ -68,3 +68,4 @@ This is a notification that your enrolment in the course \'{$a->course}\' is due
 If you need help, please contact {$a->enroller}.';
 $string['expirynotifyall'] = 'Teacher and enrolled user';
 $string['expirynotifyenroller'] = 'Teacher only';
+$string['messageprovider:expiry_notification'] = 'Self enrolment expiry notifications';
